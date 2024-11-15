@@ -1,0 +1,11 @@
+{
+  "name": "vp-manager",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "ISC",
+  "scripts": {
+    "dev": "concurrently \"pnpm run dev:client\" \"pnpm run dev:server\"",
+    "dev:client": "tsup src/client/client.ts --watch --out-dir dist/client",
+    "dev:server": "tsup src/server/server.ts --watch --out-dir dist/server"
+  }
+}
