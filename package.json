@@ -4,11 +4,15 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint",
+    "dev:server": "tsup src/server/server.ts --outDir dist/server --watch --plugin ./hotReloadPlugin.ts",
+    "biome:check": "biome format .",
+    "biome:format": "biome format --write .",
     "generate-resource": "tsx generate-resource.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@citizenfx/client": "2.0.11012-1",
+    "@citizenfx/server": "2.0.11012-1",
     "@types/node": "^22.9.0",
     "concurrently": "^9.1.0",
     "prettier": "^3.2.5",

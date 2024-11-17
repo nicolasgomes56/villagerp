@@ -6,6 +6,6 @@
     "access": "public"
   },
   "files": [
-    "base.json"
+    "client.json, server.json"
   ]
 }

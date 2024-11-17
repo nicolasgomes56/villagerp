@@ -1,16 +1,11 @@
 {
-  "name": "vp-core",
+  "name": "_boilerplate",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "module",
   "license": "ISC",
   "scripts": {
     "dev": "concurrently \"pnpm run dev:client\" \"pnpm run dev:server\"",
     "dev:client": "tsup src/client/client.ts --watch --out-dir build/client",
     "dev:server": "tsup src/server/server.ts --watch --out-dir build/server"
-  },
-  "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
-  },
-  "packageManager": "pnpm@8.15.6"
+  }
 }

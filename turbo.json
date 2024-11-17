@@ -6,9 +6,7 @@
       "persistent": true
     },
     "build": {
-      "outputs": [
-        "dist/**"
-      ],
+      "outputs": ["dist/**"],
       "cache": true
     }
   }
