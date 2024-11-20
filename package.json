@@ -1,21 +1,32 @@
 {
   "name": "villagerp",
+  "version": "1.0.0",
+  "description": "A new Five M server",
   "private": true,
+  "data": {
+    "serverVersion": "7290"
+  },
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
-    "dev:server": "tsup src/server/server.ts --outDir dist/server --watch --plugin ./hotReloadPlugin.ts",
+    "dev": "concurrently \"turbo dev\" \"tsx watch hotReloadPlugin.ts\"",
+    "dev:server": "tsup src/server/server.ts --watch --out-dir build/server",
+    "teste": "tsup --config tsup.config.ts",
     "biome:check": "biome format .",
     "biome:format": "biome format --write .",
-    "generate-resource": "tsx generate-resource.ts"
+    "generate-resource": "tsx generate-resource.ts",
+    "download-server": "cd artifacts && tsx download.js"
   },
   "devDependencies": {
+    "7zip": "^0.0.6",
     "@biomejs/biome": "1.9.4",
     "@citizenfx/client": "2.0.11012-1",
     "@citizenfx/server": "2.0.11012-1",
     "@types/node": "^22.9.0",
+    "chalk": "4",
     "concurrently": "^9.1.0",
+    "node-7z": "^3.0.0",
     "prettier": "^3.2.5",
+    "rcon-client": "^4.2.5",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "turbo": "^2.3.0",

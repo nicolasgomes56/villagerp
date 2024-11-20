@@ -1,8 +1,8 @@
-import * as udp from 'node:dgram'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { Rcon } from 'rcon-client'
 
-const findResourceName = (filePath: string): string | null | undefined => {
+const findResourceName = (filePath: string): string | null => {
   const dirName = path.dirname(filePath)
   if (fs.existsSync(path.resolve(dirName, 'fxmanifest.lua'))) {
     return path.basename(dirName)
@@ -18,18 +18,33 @@ class HotReloadPlugin {
   private address: string
   private port: number
   private password: string
-  private chunkVersions: Record<string, string>
-  private restartQueue: string[]
-  private running: boolean
+  private chunkVersions: Record<string, string> = {}
+  private restartQueue: string[] = []
+  private running = false
 
   constructor(source: string, address = '127.0.0.1', port = 30110, password = 'qwerty') {
     this.source = source
     this.address = address
     this.port = port
     this.password = password
-    this.chunkVersions = {}
-    this.restartQueue = []
-    this.running = false
+    console.log(
+      `HotReloadPlugin iniciado com source: ${this.source}, address: ${this.address}, port: ${this.port}`,
+    )
+  }
+
+  private async restartResource(resource: string) {
+    try {
+      const rcon = await Rcon.connect({
+        host: this.address,
+        port: this.port,
+        password: this.password,
+      })
+      console.log(`RCON [${this.source}] Reiniciando Recurso: ${resource}`)
+      await rcon.send(`restart ${resource}`)
+      rcon.end()
+    } catch (error) {
+      console.error(`Erro ao reiniciar o recurso ${resource}:`, error)
+    }
   }
 
   private async processRestartQueue() {
@@ -38,100 +53,48 @@ class HotReloadPlugin {
     }
     this.running = true
 
-    const resource = this.restartQueue.shift()
-    if (!resource) {
-      this.running = false
-      return
+    while (this.restartQueue.length > 0) {
+      const resource = this.restartQueue.shift()
+      if (resource) {
+        await this.restartResource(resource)
+        await this.delay(500) // Espera 500ms entre reinícios
+      }
     }
 
-    await new Promise(res => setTimeout(res, 500))
-    const command = `restart ${resource}`
-    let socketClosed = false
-    const connection = udp.createSocket('udp4')
-
-    connection.on('close', () => {
-      socketClosed = true
-    })
-    connection.on('error', () => {
-      connection.close()
-    })
-    console.log(`RCON [${this.source}] Reiniciando Recurso: ${resource}`)
-    const buffer = Buffer.alloc(11 + this.password.length + command.length)
-    buffer.writeUInt32LE(0xffffffff, 0)
-    buffer.write('rcon ', 4, 'ascii')
-    buffer.write(this.password, 9, 'ascii')
-    buffer.write(' ', 9 + this.password.length, 'ascii')
-    buffer.write(command, 10 + this.password.length, 'ascii')
-    buffer.write('\n', 10 + this.password.length + command.length, 'ascii')
-
-    connection.send(buffer, 0, buffer.length, this.port, this.address, () => {
-      connection.close()
-      this.running = false
-      this.processRestartQueue()
-    })
-
-    setTimeout(() => {
-      if (!socketClosed) {
-        connection.close()
-        this.running = false
-        this.processRestartQueue()
-      }
-    }, 1000)
+    this.running = false
   }
 
-  public apply(compiler: {
-    hooks: {
-      done: {
-        tapAsync: (
-          arg0: string,
-          arg1: (
-            stats: {
-              compilation: {
-                chunks: Array<{ name: string; hash: string; files: string[] }>
-              }
-            },
-            callback: () => void,
-          ) => void,
-        ) => void
-      }
-    }
-    options: { output: { path: string } }
-  }) {
-    compiler.hooks.done.tapAsync(
-      'HotReloadPlugin',
-      (
-        stats: {
-          compilation: {
-            chunks: Array<{ name: string; hash: string; files: string[] }>
-          }
-        },
-        callback: () => void,
-      ) => {
-        const outputPath = compiler.options.output.path
-        const resources = new Set<string>()
+  private delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
 
-        for (const chunk of stats.compilation.chunks) {
-          const oldVersion = this.chunkVersions[chunk.name]
-          this.chunkVersions[chunk.name] = chunk.hash
-          if (oldVersion && chunk.hash !== oldVersion) {
-            for (const file of chunk.files) {
-              const resource = findResourceName(path.resolve(outputPath, file))
-              if (resource) {
-                resources.add(resource)
-              }
+  public apply(compiler: any) {
+    compiler.hooks.done.tapAsync('HotReloadPlugin', (stats: any, callback: () => void) => {
+      const outputPath = compiler.options.output.path
+      const resources = new Set<string>()
+
+      for (const chunk of stats.compilation.chunks) {
+        const oldVersion = this.chunkVersions[chunk.name]
+        this.chunkVersions[chunk.name] = chunk.hash
+        if (oldVersion && chunk.hash !== oldVersion) {
+          for (const file of chunk.files) {
+            const resource = findResourceName(path.resolve(outputPath, file))
+            if (resource) {
+              resources.add(resource)
             }
           }
         }
+      }
 
-        for (const resource of resources) {
-          if (!this.restartQueue.includes(resource)) {
-            this.restartQueue.push(resource)
-          }
-          this.processRestartQueue()
+      for (const resource of resources) {
+        if (!this.restartQueue.includes(resource)) {
+          this.restartQueue.push(resource)
         }
-        callback()
-      },
-    )
+      }
+
+      this.processRestartQueue()
+      callback()
+    })
   }
 }
 
